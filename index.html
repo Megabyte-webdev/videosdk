@@ -80,7 +80,7 @@
         const meetingState = new MeetingState();
 
         const sdk = new VideoSDKCore(
-            'ws://localhost:3000/ws',
+            'ws://rust-video-server-production.up.railway.app//ws',
             meetingState,
             {
                 onUserJoined: (participant) => {
@@ -142,7 +142,7 @@
         // CREATE ROOM
         //-----------------------------------
         createBtn.addEventListener('click', async () => {
-            const res = await fetch('http://localhost:3000/rooms', {
+            const res = await fetch('https://rust-video-server-production.up.railway.app/rooms', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
