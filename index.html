@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VideoSDK | Professional Meeting</title>
+    <link rel="stylesheet" href="./styles/style.css" />
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>VideoSDK Meeting</h1>
+            <span class="status-badge">
+                User ID: <span id="displayMyId">Connecting...</span>
+            </span>
+        </header>
+
+        <div class="control-group"
+            style="background: var(--card-bg); padding: 24px; border-radius: 16px; border: 1px solid var(--border);">
+            <label>Your Display Name</label>
+            <input type="text" id="userNameInput" placeholder="Enter your name to be seen by others" />
+        </div>
+
+        <div class="controls-card">
+            <div class="control-group">
+                <h3>Host a Meeting</h3>
+                <button id="createBtn">Generate New Room</button>
+
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label>Your Room ID</label>
+                    <input type="text" id="createdRoomId" readonly />
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Join a Meeting</h3>
+
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label>Room ID</label>
+                    <input type="text" id="roomIdInput" placeholder="Paste ID here" />
+                </div>
+
+                <button id="startBtn">Join Call</button>
+
+                <!-- SCREEN SHARE BUTTON -->
+                <button id="screenBtn" disabled>Start Screen Share</button>
+            </div>
+        </div>
+
+        <div id="videosContainer">
+            <div class="video-card" id="localVideoCard">
+                <video id="localVideo" autoplay playsinline muted></video>
+                <div class="video-name" id="localVideoName">You</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { MeetingState } from './dist/MeetingState.js';
+        import { VideoSDKCore } from './dist/VideoSDKCore.js';
+
+        const localVideo = document.getElementById('localVideo');
+        const videosContainer = document.getElementById('videosContainer');
+
+        const startBtn = document.getElementById('startBtn');
+        const roomInput = document.getElementById('roomIdInput');
+        const displayId = document.getElementById('displayMyId');
+        const createBtn = document.getElementById('createBtn');
+        const createdRoomIdInput = document.getElementById('createdRoomId');
+        const nameInput = document.getElementById('userNameInput');
+        const localVideoName = document.getElementById('localVideoName');
+
+        const screenBtn = document.getElementById('screenBtn');
+
+        //-----------------------------------
+        // STATE + SDK
+        //-----------------------------------
+        const meetingState = new MeetingState();
+
+        const sdk = new VideoSDKCore(
+            'ws://localhost:3000/ws',
+            meetingState,
+            {
+                onUserJoined: (participant) => {
+                    createOrUpdateCard(participant.id, participant.name);
+                },
+
+                onTrack: (stream, peerId) => {
+                    const card = createOrUpdateCard(
+                        peerId,
+                        meetingState.getParticipant(peerId)?.name || peerId
+                    );
+
+                    const video = card.querySelector("video");
+                    video.srcObject = stream;
+                    video.play().catch(() => { });
+                },
+
+                onUserLeft: (peerId) => {
+                    document.getElementById(`videoCard-${peerId}`)?.remove();
+                }
+            }
+        );
+
+        //-----------------------------------
+        // LOCAL ID
+        //-----------------------------------
+        displayId.innerText =
+            localStorage.getItem("vsdk_id") || "Pending";
+
+        //-----------------------------------
+        // VIDEO CARD
+        //-----------------------------------
+        function createOrUpdateCard(id, name) {
+            let card = document.getElementById(`videoCard-${id}`);
+
+            if (!card) {
+                card = document.createElement("div");
+                card.className = "video-card";
+                card.id = `videoCard-${id}`;
+
+                const video = document.createElement("video");
+                video.autoplay = true;
+                video.playsInline = true;
+
+                const nameTag = document.createElement("div");
+                nameTag.className = "video-name";
+
+                card.appendChild(video);
+                card.appendChild(nameTag);
+
+                videosContainer.appendChild(card);
+            }
+
+            card.querySelector(".video-name").textContent = name;
+            return card;
+        }
+
+        //-----------------------------------
+        // CREATE ROOM
+        //-----------------------------------
+        createBtn.addEventListener('click', async () => {
+            const res = await fetch('http://localhost:3000/rooms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: "My Room",
+                    created_by: displayId.innerText
+                })
+            });
+
+            const data = await res.json();
+
+            createdRoomIdInput.value = data.id;
+            roomInput.value = data.id;
+        });
+
+        //-----------------------------------
+        // JOIN CALL
+        //-----------------------------------
+        startBtn.addEventListener('click', async () => {
+            const roomId = roomInput.value.trim();
+            const name = nameInput.value.trim() || "Anonymous";
+
+            if (!roomId) return alert("Enter room ID");
+
+            localVideoName.innerText = `${name} (You)`;
+
+            await sdk.initLocal(localVideo, name);
+            await sdk.connect(roomId, name);
+
+            startBtn.innerText = "Connected";
+            startBtn.disabled = true;
+
+            nameInput.disabled = true;
+            roomInput.disabled = true;
+
+            screenBtn.disabled = false;
+        });
+
+        //-----------------------------------
+        // SCREEN SHARE
+        //-----------------------------------
+        screenBtn.addEventListener('click', async () => {
+            try {
+                if (!sdk.isScreenSharing) {
+                    await sdk.startScreenShare();
+                    screenBtn.innerText = "Stop Screen Share";
+                } else {
+                    await sdk.stopScreenShare();
+                    screenBtn.innerText = "Start Screen Share";
+                }
+            } catch (err) {
+                console.error("Screen share error:", err);
+                alert("Screen sharing failed");
+            }
+        });
+
+    </script>
+</body>
+
+</html>
