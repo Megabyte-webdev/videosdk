@@ -80,7 +80,7 @@
         const meetingState = new MeetingState();
 
         const sdk = new VideoSDKCore(
-            'ws://rust-video-server-production.up.railway.app//ws',
+            'wss://rust-video-server-production.up.railway.app//ws',
             meetingState,
             {
                 onUserJoined: (participant) => {
