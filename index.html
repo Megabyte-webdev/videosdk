@@ -74,13 +74,11 @@
 
         const screenBtn = document.getElementById('screenBtn');
 
-        //-----------------------------------
-        // STATE + SDK
-        //-----------------------------------
+
         const meetingState = new MeetingState();
 
         const sdk = new VideoSDKCore(
-            'wss://rust-video-server-production.up.railway.app/ws',
+            'wss://rust-video-server.onrender.com/ws',
             meetingState,
             {
                 onUserJoined: (participant) => {
@@ -142,7 +140,7 @@
         // CREATE ROOM
         //-----------------------------------
         createBtn.addEventListener('click', async () => {
-            const res = await fetch('https://rust-video-server-production.up.railway.app/rooms', {
+            const res = await fetch('https://rust-video-server.onrender.com/rooms', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
