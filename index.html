@@ -89,7 +89,7 @@
             localStorage.getItem("vsdk_id") || "Pending";
 
         const sdk = new VideoSDKCore(
-            "ws://localhost:8080/ws",
+            "wss://rust-video-server.onrender.com/ws",
             meetingState,
             {
                 onUserJoined: (p) => {
@@ -155,7 +155,7 @@
 
         // ---------------- CREATE ROOM ----------------
         createBtn.onclick = async () => {
-            const res = await fetch("http://localhost:8080/rooms", {
+            const res = await fetch("https://rust-video-server.onrender.com/rooms", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
