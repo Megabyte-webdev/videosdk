@@ -31,7 +31,6 @@ export class VideoSDKCore {
         this.myId = localStorage.getItem("vsdk_id") || crypto.randomUUID();
         localStorage.setItem("vsdk_id", this.myId);
     }
-    // ---------------- MEDIA ----------------
     initLocal(video, name) {
         return __awaiter(this, void 0, void 0, function* () {
             this.localStream = yield navigator.mediaDevices.getUserMedia({
@@ -46,11 +45,9 @@ export class VideoSDKCore {
             };
         });
     }
-    // ---------------- CONNECT ----------------
     connect(roomId, name) {
         return __awaiter(this, void 0, void 0, function* () {
             this.roomId = roomId;
-            // ---------------- CLEAN OLD SESSION SAFELY ----------------
             if (this.ws) {
                 try {
                     this.ws.onopen = null;
@@ -86,7 +83,6 @@ export class VideoSDKCore {
             });
         });
     }
-    // ---------------- MESSAGE HANDLER ----------------
     handle(msg) {
         return __awaiter(this, void 0, void 0, function* () {
             var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
@@ -161,22 +157,13 @@ export class VideoSDKCore {
                     (_j = (_h = this.events).onUserLeft) === null || _j === void 0 ? void 0 : _j.call(_h, p);
                     break;
                 }
-                case "SCREEN_SHARE_START": {
-                    const peerId = msg.peerId;
-                    if (!peerId)
-                        return;
-                    this.state.setScreenStream(peerId, new MediaStream()); // mark active
-                    (_l = (_k = this.events).onScreenShareStart) === null || _l === void 0 ? void 0 : _l.call(_k, peerId);
+                case "SCREEN_SHARE_START":
+                    (_l = (_k = this.events).onScreenShareStart) === null || _l === void 0 ? void 0 : _l.call(_k, msg.peerId);
                     break;
-                }
-                case "SCREEN_SHARE_STOP": {
-                    const peerId = msg.peerId;
-                    if (!peerId)
-                        return;
-                    this.state.setScreenStream(peerId, null);
-                    (_o = (_m = this.events).onScreenShareStop) === null || _o === void 0 ? void 0 : _o.call(_m, peerId);
+                case "SCREEN_SHARE_STOP":
+                    this.state.setScreenStream(msg.peerId, null);
+                    (_o = (_m = this.events).onScreenShareStop) === null || _o === void 0 ? void 0 : _o.call(_m, msg.peerId);
                     break;
-                }
                 case "PEER_REJOINED":
                     this.closePeer(msg.peerId);
                     this.initiators.delete(msg.peerId);
@@ -185,40 +172,34 @@ export class VideoSDKCore {
             }
         });
     }
-    // ---------------- PEER ----------------
     createPeer(id) {
         if (!this.localStream)
             throw new Error("No local stream");
         const pc = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
-        // ---------------- CAMERA / MIC ----------------
         this.localStream.getTracks().forEach((track) => {
             pc.addTrack(track, this.localStream);
         });
-        // ---------------- SCREEN SHARE ----------------
         if (this.screenStream) {
             const track = this.screenStream.getVideoTracks()[0];
             if (track) {
                 pc.addTrack(track, this.screenStream);
             }
         }
-        // ---------------- INCOMING TRACKS (FIXED) ----------------
         pc.ontrack = (event) => {
             var _a, _b;
             const stream = event.streams[0] || new MediaStream([event.track]);
             const track = event.track;
-            // ✔ BEST PRACTICE: detect via track label fallback ONLY
             const isScreen = track.kind === "video" && track.label.toLowerCase().includes("screen");
             if (isScreen) {
                 this.state.setScreenStream(id, stream);
             }
-            else {
+            else if (track.kind === "video") {
                 this.state.setCameraStream(id, stream);
             }
-            (_b = (_a = this.events).onTrack) === null || _b === void 0 ? void 0 : _b.call(_a, stream, id);
+            (_b = (_a = this.events).onTrack) === null || _b === void 0 ? void 0 : _b.call(_a, id);
         };
-        // ---------------- ICE ----------------
         pc.onicecandidate = (e) => {
             if (!e.candidate)
                 return;
@@ -231,7 +212,6 @@ export class VideoSDKCore {
         };
         return pc;
     }
-    // ---------------- OFFER ----------------
     createOffer(id) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.initiators.has(id))
@@ -253,7 +233,6 @@ export class VideoSDKCore {
             });
         });
     }
-    // ---------------- ANSWER ----------------
     handleOffer(sdp, id) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!this.peers[id]) {
@@ -323,7 +302,6 @@ export class VideoSDKCore {
         this.initiators.delete(id);
         this.state.removeMedia(id);
     }
-    // ---------------- SEND ----------------
     send(msg) {
         var _a;
         (_a = this.ws) === null || _a === void 0 ? void 0 : _a.send(JSON.stringify(msg));

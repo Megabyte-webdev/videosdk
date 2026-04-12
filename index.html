@@ -84,12 +84,13 @@
         const createBtn = document.getElementById("createBtn");
         const screenBtn = document.getElementById("screenBtn");
         const localVideoName = document.getElementById("localVideoName");
+        const displayId = document.getElementById("displayMyId")
 
-        document.getElementById("displayMyId").innerText =
+        displayId.innerText =
             localStorage.getItem("vsdk_id") || "Pending";
 
         const sdk = new VideoSDKCore(
-            "ws://localhost:8080/ws",
+            "wss://rust-video-server.onrender.com/ws",
             meetingState,
             {
                 onUserJoined: (p) => {
@@ -97,25 +98,37 @@
                     createOrUpdateCard(p.id, p.name);
                 },
 
-                onTrack: (stream, peerId) => {
+                onTrack: (peerId) => {
                     const card = createOrUpdateCard(
                         peerId,
                         meetingState.getParticipant(peerId)?.name || peerId
                     );
 
                     const video = card.querySelector("video");
-                    video.srcObject = stream;
-                    video.play().catch(() => { });
+
+                    const camStream = meetingState.getCameraStream(peerId);
+
+                    if (camStream) {
+                        video.srcObject = camStream;
+                        video.play().catch(() => { });
+                    }
                 },
                 onScreenShareStart: (peerId) => {
                     screenStage.classList.remove("hidden");
+
+                    const screenStream = meetingState.getScreenStream(peerId);
+
+                    if (screenStream) {
+                        screenVideo.srcObject = screenStream;
+                        screenVideo.play().catch(() => { });
+                    }
 
                     const name = meetingState.getParticipant(peerId)?.name || peerId;
 
                     screenLabel.textContent = `${name} is presenting`;
                 },
 
-                onScreenShareStop: (peerId) => {
+                onScreenShareStop: () => {
                     screenStage.classList.add("hidden");
                     screenVideo.srcObject = null;
                 },
@@ -155,7 +168,7 @@
 
         // ---------------- CREATE ROOM ----------------
         createBtn.onclick = async () => {
-            const res = await fetch("http://localhost:8080/rooms", {
+            const res = await fetch("https://rust-video-server.onrender.com/rooms", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -173,7 +186,7 @@
         // ---------------- JOIN ROOM ----------------
         startBtn.onclick = async () => {
             const roomId = roomInput.value.trim();
-            const name = userNameInput.value.trim() || "Anonymous";
+            const name = userNameInput.value.trim() || `User-${displayId?.textContent?.slice(0, 5)}`;
 
             if (!roomId) {
                 alert("Room ID required");

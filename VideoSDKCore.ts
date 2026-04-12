@@ -1,7 +1,7 @@
 import { MeetingState, Participant } from "./MeetingState";
 
 type Events = {
-  onTrack?: (stream: MediaStream, peerId: string) => void;
+  onTrack?: (peerId: string) => void;
   onUserJoined?: (p: Participant) => void;
   onUserLeft?: (id: string) => void;
 
@@ -44,7 +44,6 @@ export class VideoSDKCore {
     localStorage.setItem("vsdk_id", this.myId);
   }
 
-  // ---------------- MEDIA ----------------
   async initLocal(video: HTMLVideoElement, name: string) {
     this.localStream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -61,11 +60,9 @@ export class VideoSDKCore {
     };
   }
 
-  // ---------------- CONNECT ----------------
   async connect(roomId: string, name: string) {
     this.roomId = roomId;
 
-    // ---------------- CLEAN OLD SESSION SAFELY ----------------
     if (this.ws) {
       try {
         this.ws.onopen = null;
@@ -107,7 +104,6 @@ export class VideoSDKCore {
     });
   }
 
-  // ---------------- MESSAGE HANDLER ----------------
   private async handle(msg: any) {
     if (msg.sender === this.myId) return;
 
@@ -192,25 +188,15 @@ export class VideoSDKCore {
         break;
       }
 
-      case "SCREEN_SHARE_START": {
-        const peerId = msg.peerId;
-        if (!peerId) return;
-
-        this.state.setScreenStream(peerId, new MediaStream()); // mark active
-        this.events.onScreenShareStart?.(peerId);
-
+      case "SCREEN_SHARE_START":
+        this.events.onScreenShareStart?.(msg.peerId);
         break;
-      }
 
-      case "SCREEN_SHARE_STOP": {
-        const peerId = msg.peerId;
-        if (!peerId) return;
-
-        this.state.setScreenStream(peerId, null);
-        this.events.onScreenShareStop?.(peerId);
-
+      case "SCREEN_SHARE_STOP":
+        this.state.setScreenStream(msg.peerId, null);
+        this.events.onScreenShareStop?.(msg.peerId);
         break;
-      }
+
       case "PEER_REJOINED":
         this.closePeer(msg.peerId);
 
@@ -221,7 +207,6 @@ export class VideoSDKCore {
     }
   }
 
-  // ---------------- PEER ----------------
   private createPeer(id: string) {
     if (!this.localStream) throw new Error("No local stream");
 
@@ -229,12 +214,10 @@ export class VideoSDKCore {
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    // ---------------- CAMERA / MIC ----------------
     this.localStream.getTracks().forEach((track) => {
       pc.addTrack(track, this.localStream!);
     });
 
-    // ---------------- SCREEN SHARE ----------------
     if (this.screenStream) {
       const track = this.screenStream.getVideoTracks()[0];
       if (track) {
@@ -242,26 +225,23 @@ export class VideoSDKCore {
       }
     }
 
-    // ---------------- INCOMING TRACKS (FIXED) ----------------
     pc.ontrack = (event) => {
       const stream = event.streams[0] || new MediaStream([event.track]);
 
       const track = event.track;
 
-      // ✔ BEST PRACTICE: detect via track label fallback ONLY
       const isScreen =
         track.kind === "video" && track.label.toLowerCase().includes("screen");
 
       if (isScreen) {
         this.state.setScreenStream(id, stream);
-      } else {
+      } else if (track.kind === "video") {
         this.state.setCameraStream(id, stream);
       }
 
-      this.events.onTrack?.(stream, id);
+      this.events.onTrack?.(id);
     };
 
-    // ---------------- ICE ----------------
     pc.onicecandidate = (e) => {
       if (!e.candidate) return;
 
@@ -276,7 +256,6 @@ export class VideoSDKCore {
     return pc;
   }
 
-  // ---------------- OFFER ----------------
   private async createOffer(id: string) {
     if (this.initiators.has(id)) return;
 
@@ -301,7 +280,6 @@ export class VideoSDKCore {
     });
   }
 
-  // ---------------- ANSWER ----------------
   private async handleOffer(sdp: string, id: string) {
     if (!this.peers[id]) {
       this.peers[id] = this.createPeer(id);
@@ -382,7 +360,6 @@ export class VideoSDKCore {
     this.state.removeMedia(id);
   }
 
-  // ---------------- SEND ----------------
   private send(msg: any) {
     this.ws?.send(JSON.stringify(msg));
   }
