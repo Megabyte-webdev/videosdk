@@ -86,8 +86,11 @@ export class VideoSDKCore {
     handle(msg) {
         return __awaiter(this, void 0, void 0, function* () {
             var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
-            if (msg.sender === this.myId)
+            console.log("HANDLE MSG:", msg);
+            if (msg.sender === this.myId) {
+                console.log("Ignoring self message");
                 return;
+            }
             switch (msg.type) {
                 case "EXISTING_USERS":
                     for (const p of msg.participants || []) {
@@ -189,6 +192,7 @@ export class VideoSDKCore {
         }
         pc.ontrack = (event) => {
             var _a, _b;
+            console.log(event);
             const stream = event.streams[0] || new MediaStream([event.track]);
             const track = event.track;
             const isScreen = track.kind === "video" && track.label.toLowerCase().includes("screen");
@@ -235,13 +239,19 @@ export class VideoSDKCore {
     }
     handleOffer(sdp, id) {
         return __awaiter(this, void 0, void 0, function* () {
+            console.log("HANDLE OFFER FROM:", id);
             if (!this.peers[id]) {
+                console.log("Creating peer because none exists");
                 this.peers[id] = this.createPeer(id);
             }
             const pc = this.peers[id];
+            console.log("Setting remote description...");
             yield pc.setRemoteDescription({ type: "offer", sdp });
+            console.log("Creating answer...");
             const answer = yield pc.createAnswer();
+            console.log("Setting local answer...");
             yield pc.setLocalDescription(answer);
+            console.log("Sending ANSWER");
             this.send({
                 type: "ANSWER",
                 payload: answer.sdp,

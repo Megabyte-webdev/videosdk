@@ -99,6 +99,8 @@
                 },
 
                 onTrack: (peerId) => {
+                    console.log("track", peerId);
+
                     const card = createOrUpdateCard(
                         peerId,
                         meetingState.getParticipant(peerId)?.name || peerId

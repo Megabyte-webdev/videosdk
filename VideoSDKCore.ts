@@ -105,7 +105,12 @@ export class VideoSDKCore {
   }
 
   private async handle(msg: any) {
-    if (msg.sender === this.myId) return;
+    console.log("HANDLE MSG:", msg);
+
+    if (msg.sender === this.myId) {
+      console.log("Ignoring self message");
+      return;
+    }
 
     switch (msg.type) {
       case "EXISTING_USERS":
@@ -226,6 +231,8 @@ export class VideoSDKCore {
     }
 
     pc.ontrack = (event) => {
+      console.log(event);
+
       const stream = event.streams[0] || new MediaStream([event.track]);
 
       const track = event.track;
@@ -281,16 +288,25 @@ export class VideoSDKCore {
   }
 
   private async handleOffer(sdp: string, id: string) {
+    console.log("HANDLE OFFER FROM:", id);
+
     if (!this.peers[id]) {
+      console.log("Creating peer because none exists");
       this.peers[id] = this.createPeer(id);
     }
 
     const pc = this.peers[id];
 
+    console.log("Setting remote description...");
     await pc.setRemoteDescription({ type: "offer", sdp });
 
+    console.log("Creating answer...");
     const answer = await pc.createAnswer();
+
+    console.log("Setting local answer...");
     await pc.setLocalDescription(answer);
+
+    console.log("Sending ANSWER");
 
     this.send({
       type: "ANSWER",
