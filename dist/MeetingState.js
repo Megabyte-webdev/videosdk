@@ -1,50 +1,54 @@
 export class MeetingState {
     constructor() {
         this.participants = new Map();
-        this.streams = new Map();
+        this.media = new Map();
         this.localParticipant = null;
         this.localStream = null;
     }
     // ---------------- PARTICIPANTS ----------------
     addParticipant(p) {
-        if (this.participants.has(p.id))
+        const existing = this.participants.get(p.id);
+        if ((existing === null || existing === void 0 ? void 0 : existing.sessionId) === p.sessionId)
             return false;
-        this.participants.set(p.id, p);
+        this.participants.set(p.id, Object.assign(Object.assign({}, existing), p));
         return true;
     }
     removeParticipant(id) {
         this.participants.delete(id);
-        this.streams.delete(id);
-    }
-    getParticipant(id) {
-        return this.participants.get(id) || null;
+        this.media.delete(id);
     }
     getParticipants() {
         return Array.from(this.participants.values());
     }
-    clearParticipants() {
-        this.participants.clear();
+    getParticipant(id) {
+        return this.participants.get(id);
     }
-    // ---------------- STREAMS ----------------
-    setStream(id, stream) {
-        this.streams.set(id, stream);
+    // ---------------- SAFE MEDIA SETTERS ----------------
+    setCameraStream(id, stream) {
+        const existing = this.media.get(id) || {};
+        this.media.set(id, Object.assign(Object.assign({}, existing), { cameraStream: stream }));
     }
-    getStream(id) {
-        return this.streams.get(id) || null;
+    setScreenStream(id, stream) {
+        const existing = this.media.get(id) || {};
+        this.media.set(id, Object.assign(Object.assign({}, existing), { screenStream: stream || undefined }));
     }
-    removeStream(id) {
-        this.streams.delete(id);
+    getMedia(id) {
+        return this.media.get(id) || null;
     }
-    getStreams() {
-        return Array.from(this.streams.entries());
+    getCameraStream(id) {
+        var _a;
+        return ((_a = this.media.get(id)) === null || _a === void 0 ? void 0 : _a.cameraStream) || null;
     }
-    clearStreams() {
-        this.streams.clear();
+    getScreenStream(id) {
+        var _a;
+        return ((_a = this.media.get(id)) === null || _a === void 0 ? void 0 : _a.screenStream) || null;
     }
-    // ---------------- RESET ----------------
+    removeMedia(id) {
+        this.media.delete(id);
+    }
     reset() {
         this.participants.clear();
-        this.streams.clear();
+        this.media.clear();
         this.localParticipant = null;
         this.localStream = null;
     }
