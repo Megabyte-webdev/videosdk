@@ -43,6 +43,8 @@
                 <button id="screenBtn" disabled>Start Screen Share</button>
             </div>
 
+            <button id="endBtn" disabled>End Meeting</button>
+
         </div>
 
         <!-- SCREEN SHARE STAGE -->
@@ -84,64 +86,96 @@
         const createBtn = document.getElementById("createBtn");
         const screenBtn = document.getElementById("screenBtn");
         const localVideoName = document.getElementById("localVideoName");
-        const displayId = document.getElementById("displayMyId")
+        const displayId = document.getElementById("displayMyId");
 
-        displayId.innerText =
-            localStorage.getItem("vsdk_id") || "Pending";
+        const endBtn = document.getElementById("endBtn");
+        displayId.innerText = localStorage.getItem("vsdk_id") || "Pending";
 
         const sdk = new VideoSDKCore(
             "wss://rust-video-server.onrender.com/ws",
             meetingState,
             {
                 onUserJoined: (p) => {
-                    alert(`${p.name || "A new particpants"} just joined`)
+                    alert(`${p.name || "A new participant"} joined`);
                     createOrUpdateCard(p.id, p.name);
                 },
 
-                onTrack: (peerId) => {
-                    console.log("track", peerId);
+                onTrack: (peerId, kind) => {
+                    const active = meetingState.getActiveScreenPeer();
 
-                    const card = createOrUpdateCard(
-                        peerId,
-                        meetingState.getParticipant(peerId)?.name || peerId
-                    );
-
-                    const video = card.querySelector("video");
-
-                    const camStream = meetingState.getCameraStream(peerId);
-
-                    if (camStream) {
-                        video.srcObject = camStream;
-                        video.play().catch(() => { });
+                    if (active === peerId) {
+                        const stream = meetingState.getScreenStream(peerId);
+                        if (stream) {
+                            screenVideo.srcObject = stream;
+                            screenStage.classList.remove("hidden");
+                        }
+                        return;
                     }
                 },
+
                 onScreenShareStart: (peerId) => {
+                    console.log("[UI] screen share started by", peerId);
+
+                    screenLabel.innerText = `${peerId} is sharing screen...`;
                     screenStage.classList.remove("hidden");
 
-                    const screenStream = meetingState.getScreenStream(peerId);
-
-                    if (screenStream) {
-                        screenVideo.srcObject = screenStream;
-                        screenVideo.play().catch(() => { });
-                    }
-
-                    const name = meetingState.getParticipant(peerId)?.name || peerId;
-
-                    screenLabel.textContent = `${name} is presenting`;
-                },
-
-                onScreenShareStop: () => {
-                    screenStage.classList.add("hidden");
+                    // IMPORTANT: clear previous stream
                     screenVideo.srcObject = null;
                 },
 
+                onScreenShareStop: (peerId) => {
+                    console.log("[UI] screen share stopped by", peerId);
+
+                    screenVideo.srcObject = null;
+                    screenStage.classList.add("hidden");
+                    screenLabel.innerText = "";
+                },
+
                 onUserLeft: (peer) => {
-                    alert(`${peer.name || "A new particpants"} just left`)
+                    alert(`${peer.name || "A participant"} left`);
                     document.getElementById(`card-${peer.id}`)?.remove();
                 }
             }
         );
 
+        endBtn.onclick = async () => {
+            try {
+                // stop screen share if active
+                if (sdk.isScreenSharing) {
+                    await sdk.stopScreenShare();
+                }
+
+                // disconnect from meeting (adjust if your SDK uses a different method)
+                if (typeof sdk.disconnect === "function") {
+                    await sdk.disconnect();
+                }
+
+                // reset UI
+                startBtn.disabled = false;
+                startBtn.innerText = "Join Call";
+
+                userNameInput.disabled = false;
+                roomInput.disabled = false;
+
+                screenBtn.disabled = true;
+                endBtn.disabled = true;
+
+                screenVideo.srcObject = null;
+                screenStage.classList.add("hidden");
+
+                videosContainer.innerHTML = `
+            <div class="video-card">
+                <video id="localVideo" autoplay playsinline muted></video>
+                <div class="video-name" id="localVideoName">You</div>
+            </div>
+        `;
+
+                alert("Meeting ended");
+            } catch (err) {
+                console.error(err);
+                alert("Failed to end meeting");
+            }
+        };
         // ---------------- CARD UI ----------------
         function createOrUpdateCard(id, name) {
             let card = document.getElementById(`card-${id}`);
@@ -207,6 +241,7 @@
             roomInput.disabled = true;
 
             screenBtn.disabled = false;
+            endBtn.disabled = false;
         };
 
         // ---------------- SCREEN SHARE ----------------

@@ -1,55 +1,67 @@
 export class MeetingState {
     constructor() {
-        this.participants = new Map();
-        this.media = new Map();
-        this.localParticipant = null;
         this.localStream = null;
+        this.localParticipant = null;
+        this.participants = new Map();
+        this.cameraStreams = new Map();
+        this.screenStreams = new Map();
+        this.mediaMode = new Map();
+        this.activeScreenPeerId = null;
+    }
+    // ---------------- SCREEN CONTROLLER ----------------
+    setActiveScreenPeer(id) {
+        console.log("[STATE] 🎯 active screen peer =", id);
+        this.activeScreenPeerId = id;
+    }
+    getActiveScreenPeer() {
+        return this.activeScreenPeerId;
     }
     // ---------------- PARTICIPANTS ----------------
     addParticipant(p) {
-        const existing = this.participants.get(p.id);
-        if ((existing === null || existing === void 0 ? void 0 : existing.sessionId) === p.sessionId)
-            return false;
-        this.participants.set(p.id, Object.assign(Object.assign({}, existing), p));
-        return true;
+        console.log("[STATE] ➕ participant", p.id);
+        this.participants.set(p.id, p);
     }
     removeParticipant(id) {
+        console.log("[STATE] ➖ remove participant", id);
         this.participants.delete(id);
-        this.media.delete(id);
-    }
-    getParticipants() {
-        return Array.from(this.participants.values());
+        this.cameraStreams.delete(id);
+        this.screenStreams.delete(id);
+        this.mediaMode.delete(id);
     }
     getParticipant(id) {
         return this.participants.get(id);
     }
-    // ---------------- SAFE MEDIA SETTERS ----------------
+    getParticipants() {
+        return Array.from(this.participants.values());
+    }
+    // ---------------- STREAMS ----------------
     setCameraStream(id, stream) {
-        const existing = this.media.get(id) || {};
-        this.media.set(id, Object.assign(Object.assign({}, existing), { cameraStream: stream }));
+        console.log("[STATE] 🎥 camera stream SET", id);
+        this.cameraStreams.set(id, stream);
     }
     setScreenStream(id, stream) {
-        const existing = this.media.get(id) || {};
-        this.media.set(id, Object.assign(Object.assign({}, existing), { screenStream: stream || undefined }));
-    }
-    getMedia(id) {
-        return this.media.get(id) || null;
+        console.log("[STATE] 🖥 screen stream SET", id);
+        this.screenStreams.set(id, stream);
     }
     getCameraStream(id) {
-        var _a;
-        return ((_a = this.media.get(id)) === null || _a === void 0 ? void 0 : _a.cameraStream) || null;
+        return this.cameraStreams.get(id) || null;
     }
     getScreenStream(id) {
-        var _a;
-        return ((_a = this.media.get(id)) === null || _a === void 0 ? void 0 : _a.screenStream) || null;
+        return this.screenStreams.get(id) || null;
     }
-    removeMedia(id) {
-        this.media.delete(id);
+    setMediaMode(id, mode) {
+        console.log("[STATE] 🔀 media mode", id, mode);
+        this.mediaMode.set(id, mode);
+    }
+    getMediaMode(id) {
+        return this.mediaMode.get(id) || "camera";
     }
     reset() {
+        console.log("[STATE] 🔄 reset");
         this.participants.clear();
-        this.media.clear();
-        this.localParticipant = null;
-        this.localStream = null;
+        this.cameraStreams.clear();
+        this.screenStreams.clear();
+        this.mediaMode.clear();
+        this.activeScreenPeerId = null;
     }
 }
