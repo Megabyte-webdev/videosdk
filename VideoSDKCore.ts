@@ -1,21 +1,14 @@
-import { MeetingState, Participant } from "./MeetingState";
-
-type MediaKind = "camera" | "screen";
+import { MeetingState, Participant, MediaKind } from "./MeetingState";
 
 type Events = {
   onTrack?: (peerId: string, kind: MediaKind) => void;
   onUserJoined?: (p: Participant) => void;
   onUserLeft?: (p: Participant) => void;
-  onScreenShareStart?: (peerId: string) => void;
-  onScreenShareStop?: (peerId: string) => void;
 };
 
 export class VideoSDKCore {
   private ws: WebSocket | null = null;
   private peers: Record<string, RTCPeerConnection> = {};
-
-  private screenSenders: Record<string, RTCRtpSender> = {};
-  private offerLocks = new Set<string>();
 
   private myId: string;
   private roomId: string | null = null;
@@ -23,7 +16,7 @@ export class VideoSDKCore {
   private localStream: MediaStream | null = null;
   private screenStream: MediaStream | null = null;
 
-  public isScreenSharing = false;
+  public isScreenSharing: boolean = false;
 
   constructor(
     private url: string,
@@ -31,13 +24,12 @@ export class VideoSDKCore {
     private events: Events = {},
   ) {
     this.myId = localStorage.getItem("vsdk_id") || crypto.randomUUID();
+
     localStorage.setItem("vsdk_id", this.myId);
   }
 
-  // ---------------- LOCAL ----------------
+  // ---------------- LOCAL INIT ----------------
   async initLocal(video: HTMLVideoElement, name: string) {
-    console.log("[SDK] init local");
-
     this.localStream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
@@ -45,21 +37,29 @@ export class VideoSDKCore {
 
     video.srcObject = this.localStream;
 
-    this.state.localStream = this.localStream;
-    this.state.localParticipant = { id: this.myId, name };
+    this.state.localParticipant = {
+      id: this.myId,
+      name,
+      media: {
+        cameraStream: this.localStream,
+        screenStream: null,
+        micEnabled: true,
+        camEnabled: true,
+        isScreenSharing: false,
+      },
+    };
   }
 
   // ---------------- CONNECT ----------------
   async connect(roomId: string, name: string) {
     this.roomId = roomId;
+
     this.reset();
 
     return new Promise<void>((resolve, reject) => {
       this.ws = new WebSocket(this.url);
 
       this.ws.onopen = () => {
-        console.log("[SDK] connected");
-
         this.send({
           type: "JOIN",
           room_id: roomId,
@@ -71,20 +71,21 @@ export class VideoSDKCore {
       };
 
       this.ws.onerror = reject;
+
       this.ws.onmessage = (e) => this.handle(JSON.parse(e.data));
     });
   }
 
   // ---------------- RESET ----------------
   private reset() {
-    Object.values(this.peers).forEach((p) => p.close());
+    Object.values(this.peers).forEach((pc) => pc.close());
+
     this.peers = {};
-    this.screenSenders = {};
-    this.offerLocks.clear();
+
     this.state.reset();
   }
 
-  // ---------------- HANDLE ----------------
+  // ---------------- SIGNAL HANDLER ----------------
   private async handle(msg: any) {
     if (msg.sender === this.myId) return;
 
@@ -92,6 +93,7 @@ export class VideoSDKCore {
       case "EXISTING_USERS":
         for (const p of msg.participants || []) {
           this.addParticipant(p);
+
           await this.createOffer(p.id);
         }
         break;
@@ -101,7 +103,7 @@ export class VideoSDKCore {
         break;
 
       case "USER_LEFT":
-        if (msg.participant) this.handleUserLeft(msg.participant);
+        this.handleUserLeft(msg.participant);
         break;
 
       case "OFFER":
@@ -116,29 +118,23 @@ export class VideoSDKCore {
         await this.handleIce(msg);
         break;
 
-      // ---------------- SCREEN ----------------
       case "SCREEN_SHARE_START": {
-        const peerId = msg.peerId;
+        const p = this.state.getParticipant(msg.sender);
 
-        console.log("[SDK] 🖥 SCREEN START", peerId);
+        if (p) {
+          p.media.isScreenSharing = true;
+        }
 
-        this.state.setMediaMode(peerId, "screen");
-        this.state.setActiveScreenPeer(peerId);
-
-        this.events.onScreenShareStart?.(peerId);
         break;
       }
 
       case "SCREEN_SHARE_STOP": {
-        const peerId = msg.peerId;
+        const p = this.state.getParticipant(msg.sender);
 
-        console.log("[SDK] 📴 SCREEN STOP", peerId);
+        if (p) {
+          p.media.isScreenSharing = false;
+        }
 
-        this.state.setMediaMode(peerId, "camera");
-        this.state.setActiveScreenPeer(null);
-        this.state.setScreenStream(peerId, null);
-
-        this.events.onScreenShareStop?.(peerId);
         break;
       }
     }
@@ -150,39 +146,37 @@ export class VideoSDKCore {
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    // CAMERA ONLY
-    this.localStream?.getTracks().forEach((t) => {
-      pc.addTrack(t, this.localStream!);
+    // add local tracks
+    this.localStream?.getTracks().forEach((track) => {
+      pc.addTrack(track, this.localStream!);
     });
 
+    // ---------------- ON TRACK ----------------
     pc.ontrack = (event) => {
       const stream = event.streams[0];
-      const peerId = id;
 
-      const activeScreen = this.state.getActiveScreenPeer();
+      const participant = this.state.getParticipant(id);
 
-      console.log("[SDK] 🎬 ontrack", peerId);
+      if (!participant) return;
 
-      // ---------------- SCREEN ----------------
-      if (activeScreen === peerId) {
-        console.log("[SDK] 🖥 SCREEN STREAM RECEIVED", peerId);
+      // IMPORTANT:
+      // DO NOT infer screen from stream structure
+      // USE SIGNALING STATE
 
-        this.events.onTrack?.(peerId, "screen");
+      if (participant.media.isScreenSharing) {
+        this.state.setScreenStream(id, stream);
+
+        this.events.onTrack?.(id, "screen");
+
         return;
       }
 
-      // ---------------- CAMERA ----------------
-      if (this.state.getActiveScreenPeer() === peerId) {
-        console.log("[SDK] 🚫 ignoring camera (screen active)");
-        return;
-      }
+      this.state.setCameraStream(id, stream);
 
-      console.log("[SDK] 🎥 CAMERA STREAM RECEIVED", peerId);
-
-      this.state.setCameraStream(peerId, stream);
-      this.events.onTrack?.(peerId, "camera");
+      this.events.onTrack?.(id, "camera");
     };
 
+    // ICE
     pc.onicecandidate = (e) => {
       if (!e.candidate) return;
 
@@ -199,35 +193,38 @@ export class VideoSDKCore {
 
   // ---------------- OFFER ----------------
   private async createOffer(id: string) {
-    if (this.offerLocks.has(id)) return;
-    this.offerLocks.add(id);
-
-    try {
-      if (!this.peers[id]) this.peers[id] = this.createPeer(id);
-
-      const pc = this.peers[id];
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      this.send({
-        type: "OFFER",
-        sender: this.myId,
-        target: id,
-        payload: offer.sdp,
-      });
-    } finally {
-      this.offerLocks.delete(id);
+    if (!this.peers[id]) {
+      this.peers[id] = this.createPeer(id);
     }
-  }
-
-  private async handleOffer(sdp: string, id: string) {
-    if (!this.peers[id]) this.peers[id] = this.createPeer(id);
 
     const pc = this.peers[id];
 
-    await pc.setRemoteDescription({ type: "offer", sdp });
+    const offer = await pc.createOffer();
+
+    await pc.setLocalDescription(offer);
+
+    this.send({
+      type: "OFFER",
+      sender: this.myId,
+      target: id,
+      payload: offer.sdp,
+    });
+  }
+
+  private async handleOffer(sdp: string, id: string) {
+    if (!this.peers[id]) {
+      this.peers[id] = this.createPeer(id);
+    }
+
+    const pc = this.peers[id];
+
+    await pc.setRemoteDescription({
+      type: "offer",
+      sdp,
+    });
 
     const answer = await pc.createAnswer();
+
     await pc.setLocalDescription(answer);
 
     this.send({
@@ -240,6 +237,7 @@ export class VideoSDKCore {
 
   private async handleAnswer(msg: any) {
     const pc = this.peers[msg.sender];
+
     if (!pc) return;
 
     await pc.setRemoteDescription({
@@ -252,95 +250,88 @@ export class VideoSDKCore {
     await this.peers[msg.sender]?.addIceCandidate(JSON.parse(msg.payload));
   }
 
-  // ---------------- USER LEFT ----------------
-  private handleUserLeft(p: Participant) {
-    this.peers[p.id]?.close();
-    delete this.peers[p.id];
-
-    this.state.removeParticipant(p.id);
-    this.state.setCameraStream(p.id, null);
-    this.state.setScreenStream(p.id, null);
-
-    this.events.onUserLeft?.(p);
-  }
-
   // ---------------- SCREEN SHARE ----------------
   async startScreenShare() {
-    console.log("[SDK] startScreenShare");
-
     this.screenStream = await navigator.mediaDevices.getDisplayMedia({
       video: true,
-      audio: false,
     });
 
     const track = this.screenStream.getVideoTracks()[0];
 
     this.isScreenSharing = true;
 
-    // IMPORTANT: set active screen IMMEDIATELY
-    this.state.setActiveScreenPeer(this.myId);
-    this.state.setScreenStream(this.myId, this.screenStream);
+    if (this.state.localParticipant) {
+      this.state.localParticipant.media.screenStream = this.screenStream;
 
-    for (const [id, pc] of Object.entries(this.peers)) {
-      const sender = this.screenSenders[id];
+      this.state.localParticipant.media.isScreenSharing = true;
+    }
 
-      if (sender) sender.replaceTrack(track);
-      else this.screenSenders[id] = pc.addTrack(track, this.screenStream);
+    // replace camera track (PROPER WAY)
+    for (const id in this.peers) {
+      const pc = this.peers[id];
 
-      await this.reoffer(id);
+      const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+
+      await sender?.replaceTrack(track);
     }
 
     this.send({
       type: "SCREEN_SHARE_START",
       sender: this.myId,
-      room_id: this.roomId,
-      peerId: this.myId,
     });
 
     track.onended = () => this.stopScreenShare();
   }
+
   async stopScreenShare() {
-    console.log("[SDK] stopScreenShare");
+    this.screenStream?.getTracks().forEach((t) => t.stop());
 
-    this.state.setActiveScreenPeer(null);
+    this.screenStream = null;
 
-    for (const [id, pc] of Object.entries(this.peers)) {
-      const sender = this.screenSenders[id];
-      if (sender) pc.removeTrack(sender);
+    this.isScreenSharing = false;
+
+    if (this.state.localParticipant) {
+      this.state.localParticipant.media.screenStream = null;
+
+      this.state.localParticipant.media.isScreenSharing = false;
     }
 
-    this.screenSenders = {};
-    this.screenStream?.getTracks().forEach((t) => t.stop());
-    this.screenStream = null;
-    this.isScreenSharing = false;
+    const camTrack = this.localStream?.getVideoTracks()[0];
+
+    if (camTrack) {
+      for (const id in this.peers) {
+        const pc = this.peers[id];
+
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+
+        await sender?.replaceTrack(camTrack);
+      }
+    }
 
     this.send({
       type: "SCREEN_SHARE_STOP",
       sender: this.myId,
-      room_id: this.roomId,
-      peerId: this.myId,
-    });
-  }
-
-  private async reoffer(id: string) {
-    const pc = this.peers[id];
-    if (!pc) return;
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    this.send({
-      type: "OFFER",
-      sender: this.myId,
-      target: id,
-      payload: offer.sdp,
     });
   }
 
   // ---------------- HELPERS ----------------
   private addParticipant(p: any) {
-    this.state.addParticipant({ id: p.id, name: p.name });
-    this.events.onUserJoined?.(p);
+    this.state.addParticipant({
+      id: p.id,
+      name: p.name,
+    });
+
+    this.events.onUserJoined?.(this.state.getParticipant(p.id)!);
+  }
+
+  private handleUserLeft(p: Participant) {
+    this.peers[p.id]?.close();
+
+    delete this.peers[p.id];
+
+    this.state.removeParticipant(p.id);
+
+    this.events.onUserLeft?.(p);
   }
 
   private send(msg: any) {
