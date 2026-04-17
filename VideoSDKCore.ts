@@ -419,6 +419,7 @@ export class VideoSDKCore {
     });
 
     // close socket AFTER notifying server
+    this.stopHeartbeat();
     this.ws.close();
 
     this.ws = null;
