@@ -12,7 +12,7 @@ export class VideoSDKCore {
   private screenStream: MediaStream | null = null;
 
   public isScreenSharing: boolean = false;
-
+  private pingInterval: any = null;
   constructor(
     private url: string,
     private state: MeetingState,
@@ -62,6 +62,7 @@ export class VideoSDKCore {
           sender_name: name,
         });
 
+        this.startHeartbeat();
         resolve();
       };
 
@@ -69,6 +70,25 @@ export class VideoSDKCore {
 
       this.ws.onmessage = (e) => this.handle(JSON.parse(e.data));
     });
+  }
+
+  private startHeartbeat() {
+    this.stopHeartbeat();
+
+    this.pingInterval = setInterval(() => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+      this.send({
+        type: "PING",
+        client_ts: Date.now(),
+      });
+    }, 20000); // every 20s
+  }
+  private stopHeartbeat() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
   }
 
   // ---------------- RESET ----------------
