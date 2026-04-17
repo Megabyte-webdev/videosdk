@@ -306,8 +306,10 @@ export class VideoSDKCore {
             user_id: this.myId,
             sender_name: senderName,
             room_id: this.roomId,
-            target: payload.isPrivate ? (_b = payload === null || payload === void 0 ? void 0 : payload.reply_to) === null || _b === void 0 ? void 0 : _b.id : null,
-            reply_to: (payload === null || payload === void 0 ? void 0 : payload.reply_to) || null,
+            payload: {
+                target: payload.isPrivate ? (_b = payload === null || payload === void 0 ? void 0 : payload.reply_to) === null || _b === void 0 ? void 0 : _b.id : null,
+                reply_to: (payload === null || payload === void 0 ? void 0 : payload.reply_to) || null,
+            },
             client_ts: Date.now(),
         });
     }
