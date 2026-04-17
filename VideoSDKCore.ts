@@ -370,8 +370,10 @@ export class VideoSDKCore {
       user_id: this.myId,
       sender_name: senderName,
       room_id: this.roomId,
-      target: payload.isPrivate ? payload?.reply_to?.id : null,
-      reply_to: payload?.reply_to || null,
+      payload: {
+        target: payload.isPrivate ? payload?.reply_to?.id : null,
+        reply_to: payload?.reply_to || null,
+      },
       client_ts: Date.now(),
     });
   }
