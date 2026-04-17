@@ -349,7 +349,7 @@ export class VideoSDKCore {
 
   sendChat(payload: {
     text: string;
-    reply_to: { id: string; name: string };
+    replyTo: { id: string; name: string };
     isPrivate: Boolean;
   }) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -371,8 +371,8 @@ export class VideoSDKCore {
       sender_name: senderName,
       room_id: this.roomId,
       payload: {
-        target: payload.isPrivate ? payload?.reply_to?.id : null,
-        reply_to: payload?.reply_to || null,
+        target: payload.isPrivate ? payload?.replyTo?.id : null,
+        reply_to: payload?.replyTo || null,
       },
       client_ts: Date.now(),
     });

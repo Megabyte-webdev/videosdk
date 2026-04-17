@@ -307,8 +307,8 @@ export class VideoSDKCore {
             sender_name: senderName,
             room_id: this.roomId,
             payload: {
-                target: payload.isPrivate ? (_b = payload === null || payload === void 0 ? void 0 : payload.reply_to) === null || _b === void 0 ? void 0 : _b.id : null,
-                reply_to: (payload === null || payload === void 0 ? void 0 : payload.reply_to) || null,
+                target: payload.isPrivate ? (_b = payload === null || payload === void 0 ? void 0 : payload.replyTo) === null || _b === void 0 ? void 0 : _b.id : null,
+                reply_to: (payload === null || payload === void 0 ? void 0 : payload.replyTo) || null,
             },
             client_ts: Date.now(),
         });
