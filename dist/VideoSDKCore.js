@@ -18,6 +18,7 @@ export class VideoSDKCore {
         this.localStream = null;
         this.screenStream = null;
         this.isScreenSharing = false;
+        this.pingInterval = null;
         this.myId = localStorage.getItem("vsdk_id") || crypto.randomUUID();
         localStorage.setItem("vsdk_id", this.myId);
     }
@@ -56,12 +57,30 @@ export class VideoSDKCore {
                         user_id: this.myId,
                         sender_name: name,
                     });
+                    this.startHeartbeat();
                     resolve();
                 };
                 this.ws.onerror = reject;
                 this.ws.onmessage = (e) => this.handle(JSON.parse(e.data));
             });
         });
+    }
+    startHeartbeat() {
+        this.stopHeartbeat();
+        this.pingInterval = setInterval(() => {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN)
+                return;
+            this.send({
+                type: "PING",
+                client_ts: Date.now(),
+            });
+        }, 20000); // every 20s
+    }
+    stopHeartbeat() {
+        if (this.pingInterval) {
+            clearInterval(this.pingInterval);
+            this.pingInterval = null;
+        }
     }
     // ---------------- RESET ----------------
     reset() {
@@ -290,11 +309,12 @@ export class VideoSDKCore {
         (_a = this.ws) === null || _a === void 0 ? void 0 : _a.send(JSON.stringify(msg));
     }
     sendChat(payload) {
-        var _a, _b;
+        var _a, _b, _c;
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             console.warn("WS not connected");
             return;
         }
+        const isPrivate = !!(payload === null || payload === void 0 ? void 0 : payload.target);
         if (!this.roomId) {
             console.warn("No roomId set");
             return;
@@ -302,12 +322,12 @@ export class VideoSDKCore {
         const senderName = ((_a = this.state.localParticipant) === null || _a === void 0 ? void 0 : _a.name) || "Anonymous";
         this.send({
             type: "CHAT_MESSAGE",
-            message: payload.text.trim(),
+            message: (_b = payload === null || payload === void 0 ? void 0 : payload.message) === null || _b === void 0 ? void 0 : _b.trim(),
             user_id: this.myId,
             sender_name: senderName,
             room_id: this.roomId,
-            target: payload.isPrivate ? (_b = payload === null || payload === void 0 ? void 0 : payload.replyTo) === null || _b === void 0 ? void 0 : _b.id : null,
-            reply_to: (payload === null || payload === void 0 ? void 0 : payload.replyTo) || null,
+            target: isPrivate ? (_c = payload === null || payload === void 0 ? void 0 : payload.reply_to) === null || _c === void 0 ? void 0 : _c.id : null,
+            reply_to: (payload === null || payload === void 0 ? void 0 : payload.reply_to) || null,
             client_ts: Date.now(),
         });
     }
@@ -330,6 +350,7 @@ export class VideoSDKCore {
             room_id: this.roomId,
         });
         // close socket AFTER notifying server
+        this.stopHeartbeat();
         this.ws.close();
         this.ws = null;
         this.cleanupLocal();

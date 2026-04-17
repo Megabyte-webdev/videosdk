@@ -429,3 +429,116 @@ body:has(.chat-panel:not(.hidden)) .chat-toggle {
 .chat-badge.hidden {
   display: none !important;
 }
+
+/* Enhanced Private Message Styling */
+.chat-message.private-msg {
+  background: rgba(245, 158, 11, 0.08); /* Subtle amber glow */
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.1);
+}
+
+/* Specific styling for the "Direct To" indicator */
+.private-context {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #f59e0b; /* Amber/Gold */
+  margin-bottom: 6px;
+  font-weight: 800;
+}
+
+/* Glassmorphism for the Reply Banner */
+.reply-banner {
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(8px);
+  border-top: 2px solid #f59e0b;
+  padding: 10px 15px;
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Unique ID display in chat */
+.sender-id-tag {
+  font-family: monospace;
+  font-size: 0.65rem;
+  opacity: 0.5;
+  margin-left: 5px;
+}
+
+.private-notice-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.2); /* Darken slightly to make text pop */
+  margin: -10px -14px 10px -14px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+  color: #f59e0b; /* Professional Gold/Amber */
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Make private messages stand out with a "Security" glow */
+.chat-message.private-msg {
+  border: 1px solid rgba(245, 158, 11, 0.5) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  overflow: hidden; /* Clips the top bar to bubble radius */
+}
+
+/* Subtle animation for incoming private messages to grab attention */
+.private-msg:not(.is-me) {
+  animation: notify-blink 1s ease-in-out;
+}
+
+.chat-message.is-me.private-msg {
+  background: var(--primary); /* Keeps your blue theme */
+}
+
+/* Ensure received private messages keep the slate background */
+.chat-message.private-msg:not(.is-me) {
+  background: #334155; /* Keeps your slate-700 theme */
+}
+
+/* Subtle glowing pulse only on the border for received DMs */
+.private-msg:not(.is-me) {
+  animation: border-glow 2s infinite alternate;
+}
+
+@keyframes border-glow {
+  from {
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+  to {
+    border-color: rgba(245, 158, 11, 0.8);
+  }
+}
+
+@keyframes notify-blink {
+  0% {
+    border-color: #f59e0b;
+    transform: scale(1);
+  }
+  50% {
+    border-color: #ffffff;
+    transform: scale(1.02);
+  }
+  100% {
+    border-color: rgba(245, 158, 11, 0.4);
+    transform: scale(1);
+  }
+}

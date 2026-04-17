@@ -42,11 +42,13 @@ let replyTargetName = null;
 function showReplyBanner(name) {
   replyBanner.classList.remove("hidden");
   replyName.innerText = name;
+  chatInput.placeholder = `Send private message to ${name}...`; // Contextual placeholder
   handleOpenChat();
 }
 
 function hideReplyBanner() {
   replyBanner.classList.add("hidden");
+  chatInput.placeholder = "Type a message..."; // Reset placeholder
   replyTargetId = null;
   replyTargetName = null;
 }
@@ -69,13 +71,13 @@ sendChatBtn.onclick = () => {
   const text = chatInput.value.trim();
   if (!text) return;
 
-  // Check if we are in "Private" mode based on your card click logic
   const isPrivate = !!replyTargetId;
 
+  // This matches the JSON structure you just shared
   const messageData = {
-    text: text,
-    isPrivate: isPrivate,
-    replyTo: isPrivate
+    message: text,
+    target: replyTargetId, // This makes it private
+    reply_to: isPrivate
       ? {
           id: replyTargetId,
           name: replyTargetName,
@@ -83,15 +85,14 @@ sendChatBtn.onclick = () => {
       : null,
   };
 
-  // Send the structured JSON string through the SDK
   sdk.sendChat(messageData);
 
-  // Render locally for the user
+  // Render locally
   renderMessage(
     {
       sender_id: localStorage.getItem("vsdk_id"),
       sender_name: "You",
-      message: JSON.stringify(messageData), // Pass same JSON structure for parsing consistency
+      ...messageData, // Spreads message, target, and reply_to
     },
     true,
   );
@@ -107,51 +108,34 @@ chatInput.addEventListener("keypress", (e) => {
 });
 
 function renderMessage(msg, isMe = false) {
-  let messageBody = msg.message;
-  let replyContext = msg.reply_to || null;
-  let isPrivate = false;
-
-  try {
-    const parsed = JSON.parse(msg.message);
-    messageBody = parsed.text;
-    replyContext = parsed.replyTo;
-    isPrivate = parsed.isPrivate;
-  } catch (e) {
-    // Fallback for plain text messages
-  }
+  const messageBody = msg.message;
+  const replyContext = msg.reply_to || null;
+  const isPrivate = !!msg.target;
 
   const div = document.createElement("div");
-  // Dynamic classes for styling
+  // Keep base classes (chat-message, is-me) and add private-msg as a modifier
   div.className = `chat-message ${isMe ? "is-me" : ""} ${isPrivate ? "private-msg" : ""}`;
 
-  // 1. Header: Name + Private Badge
-  const header = document.createElement("div");
-  header.className = "message-header";
-
-  const nameSpan = document.createElement("span");
-  nameSpan.className = "sender-name";
-  nameSpan.innerText = isMe ? "You" : msg.sender_name;
-
-  header.appendChild(nameSpan);
-
+  // 1. TOP PRIVACY BAR (Glass Overlay)
   if (isPrivate) {
-    const badge = document.createElement("span");
-    badge.className = "private-badge";
-    badge.innerText = "🔒 Private";
-    header.appendChild(badge);
-  }
-  div.appendChild(header);
+    const privHeader = document.createElement("div");
+    privHeader.className = "private-notice-bar";
 
-  // 2. Reply Context
-  if (replyContext) {
-    const replyDiv = document.createElement("div");
-    replyDiv.className = "replied-content";
-    const label = isPrivate ? "Direct to" : "Replying to";
-    replyDiv.innerHTML = `<small>${label} <b>@${replyContext.name}</b></small>`;
-    div.appendChild(replyDiv);
+    const noticeText = isMe
+      ? `Only you and ${replyContext?.name || "them"} can see this`
+      : `Private: Only you can see this`;
+
+    privHeader.innerHTML = `<span>🔒</span> <small>${noticeText}</small>`;
+    div.appendChild(privHeader);
   }
 
-  // 3. Text content
+  // 2. SENDER NAME
+  const nameHeader = document.createElement("div");
+  nameHeader.className = "message-header";
+  nameHeader.innerHTML = `<span class="sender-name">${isMe ? "You" : msg.sender_name}</span>`;
+  div.appendChild(nameHeader);
+
+  // 3. MESSAGE BODY
   const textDiv = document.createElement("div");
   textDiv.className = "text";
   textDiv.innerText = messageBody;
@@ -215,7 +199,13 @@ const sdk = new VideoSDKCore(
         audio.play();
       }
       if (!isMe) {
-        renderMessage(msg, false);
+        const newMsg = {
+          ...msg,
+          isPrivate: !!msg?.reply_to?.id,
+        };
+        console.log("new msg", msg);
+
+        renderMessage(newMsg, false);
 
         // Show indicator only if the user isn't currently looking at the chat
         if (chatPanel.classList.contains("hidden")) {

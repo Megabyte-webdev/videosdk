@@ -368,14 +368,16 @@ export class VideoSDKCore {
   }
 
   sendChat(payload: {
-    text: string;
-    replyTo: { id: string; name: string };
-    isPrivate: Boolean;
+    message: string;
+    reply_to: { id: string; name: string };
+    target: string | null;
   }) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.warn("WS not connected");
       return;
     }
+
+    const isPrivate = !!payload?.target;
 
     if (!this.roomId) {
       console.warn("No roomId set");
@@ -386,12 +388,12 @@ export class VideoSDKCore {
 
     this.send({
       type: "CHAT_MESSAGE",
-      message: payload.text.trim(),
+      message: payload?.message?.trim(),
       user_id: this.myId,
       sender_name: senderName,
       room_id: this.roomId,
-      target: payload.isPrivate ? payload?.replyTo?.id : null,
-      reply_to: payload?.replyTo || null,
+      target: isPrivate ? payload?.reply_to?.id : null,
+      reply_to: payload?.reply_to || null,
       client_ts: Date.now(),
     });
   }
