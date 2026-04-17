@@ -164,63 +164,67 @@ function renderMessage(msg, isMe = false) {
 displayId.innerText = localStorage.getItem("vsdk_id") || "Pending";
 
 // ---------------- SDK ----------------
-const sdk = new VideoSDKCore("ws://localhost:8080/ws", meetingState, {
-  onUserJoined: (participant) => {
-    alert(`${participant.name || "Participant"} joined`);
+const sdk = new VideoSDKCore(
+  "wss://rust-video-server.onrender.com/ws",
+  meetingState,
+  {
+    onUserJoined: (participant) => {
+      alert(`${participant.name || "Participant"} joined`);
 
-    createOrUpdateCard(participant.id, participant.name);
-  },
+      createOrUpdateCard(participant.id, participant.name);
+    },
 
-  onTrack: (peerId, kind) => {
-    const participant = meetingState.getParticipant(peerId);
+    onTrack: (peerId, kind) => {
+      const participant = meetingState.getParticipant(peerId);
 
-    if (!participant) return;
+      if (!participant) return;
 
-    // CAMERA
-    if (kind === "camera") {
-      const card = createOrUpdateCard(participant.id, participant.name);
+      // CAMERA
+      if (kind === "camera") {
+        const card = createOrUpdateCard(participant.id, participant.name);
 
-      const video = card.querySelector("video");
+        const video = card.querySelector("video");
 
-      video.srcObject = participant.media.cameraStream;
+        video.srcObject = participant.media.cameraStream;
 
-      return;
-    }
-
-    // SCREEN
-    if (kind === "screen") {
-      screenVideo.srcObject = participant.media.screenStream;
-
-      screenLabel.innerText = `${participant.name || peerId} is sharing screen`;
-
-      screenStage.classList.remove("hidden");
-    }
-  },
-
-  onUserLeft: (participant) => {
-    alert(`${participant.name || "Participant"} left`);
-
-    document.getElementById(`card-${participant.id}`)?.remove();
-  },
-  onMessage: (msg) => {
-    const myId = localStorage.getItem("vsdk_id");
-    const isMe = msg.sender_id === myId;
-    if (document.hidden && !isMe) {
-      const audio = new Audio(
-        "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3",
-      );
-      audio.play();
-    }
-    if (!isMe) {
-      renderMessage(msg, false);
-
-      // Show indicator only if the user isn't currently looking at the chat
-      if (chatPanel.classList.contains("hidden")) {
-        chatBadge.classList.remove("hidden");
+        return;
       }
-    }
+
+      // SCREEN
+      if (kind === "screen") {
+        screenVideo.srcObject = participant.media.screenStream;
+
+        screenLabel.innerText = `${participant.name || peerId} is sharing screen`;
+
+        screenStage.classList.remove("hidden");
+      }
+    },
+
+    onUserLeft: (participant) => {
+      alert(`${participant.name || "Participant"} left`);
+
+      document.getElementById(`card-${participant.id}`)?.remove();
+    },
+    onMessage: (msg) => {
+      const myId = localStorage.getItem("vsdk_id");
+      const isMe = msg.sender_id === myId;
+      if (document.hidden && !isMe) {
+        const audio = new Audio(
+          "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3",
+        );
+        audio.play();
+      }
+      if (!isMe) {
+        renderMessage(msg, false);
+
+        // Show indicator only if the user isn't currently looking at the chat
+        if (chatPanel.classList.contains("hidden")) {
+          chatBadge.classList.remove("hidden");
+        }
+      }
+    },
   },
-});
+);
 
 // ---------------- VIDEO CARD ----------------
 function createOrUpdateCard(id, name) {
@@ -261,7 +265,7 @@ function createOrUpdateCard(id, name) {
 
 // ---------------- CREATE ROOM ----------------
 createBtn.onclick = async () => {
-  const res = await fetch("http://localhost:8080/rooms", {
+  const res = await fetch("https://rust-video-server.onrender.com/rooms", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
