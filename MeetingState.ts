@@ -1,18 +1,4 @@
-export type MediaKind = "camera" | "screen";
-
-export type ParticipantMedia = {
-  cameraStream: MediaStream | null;
-  screenStream: MediaStream | null;
-  micEnabled: boolean;
-  camEnabled: boolean;
-  isScreenSharing: boolean;
-};
-
-export type Participant = {
-  id: string;
-  name?: string;
-  media: ParticipantMedia;
-};
+import { ChatMessage, Participant, ParticipantMedia } from "./types";
 
 export class MeetingState {
   localParticipant: Participant | null = null;
@@ -20,6 +6,14 @@ export class MeetingState {
   private participants = new Map<string, Participant>();
 
   private activeScreenPeerId: string | null = null;
+  messages: ChatMessage[] = [];
+
+  addMessage(msg: ChatMessage) {
+    this.messages.push(msg);
+  }
+  getMessages() {
+    return this.messages;
+  }
 
   // ---------------- PARTICIPANTS ----------------
   addParticipant(
@@ -81,5 +75,6 @@ export class MeetingState {
     this.participants.clear();
     this.activeScreenPeerId = null;
     this.localParticipant = null;
+    this.messages = [];
   }
 }

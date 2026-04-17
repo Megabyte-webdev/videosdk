@@ -69,258 +69,42 @@
 
         </div>
 
+        <div id="chatPanel" class="chat-panel hidden">
+            <div class="chat-header">
+                <span>In-call Chat</span>
+                <button id="closeChat" aria-label="Close Chat">✖</button>
+            </div>
+
+            <div id="chatMessages" class="chat-messages">
+            </div>
+
+            <div class="chat-footer">
+                <div id="replyBanner" class="reply-banner hidden">
+                    <span>Replying to <strong id="replyName"></strong> privately</span>
+                    <button id="cancelReply">✖</button>
+                </div>
+                <div class="chat-input-wrapper">
+                    <input type="text" id="chatInput" placeholder="Type a message..." />
+                    <button id="sendChatBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <button id="openChatBtn" class="chat-toggle">
+            <span class="chat-icon">💬</span>
+            <span class="chat-text">Chat</span>
+            <span id="chatBadge" class="chat-badge hidden"></span>
+        </button>
+
     </div>
 
-    <script type="module">
-        import { MeetingState } from './dist/MeetingState.js';
-        import { VideoSDKCore } from './dist/VideoSDKCore.js';
-
-        const meetingState = new MeetingState();
-
-        // ---------------- ELEMENTS ----------------
-        const localVideo = document.getElementById("localVideo");
-        const videosContainer = document.getElementById("videosContainer");
-
-        const screenStage = document.getElementById("screenStage");
-        const screenVideo = document.getElementById("screenVideo");
-        const screenLabel = document.getElementById("screenLabel");
-
-        const userNameInput = document.getElementById("userNameInput");
-        const roomInput = document.getElementById("roomIdInput");
-        const createdRoomInput = document.getElementById("createdRoomId");
-
-        const startBtn = document.getElementById("startBtn");
-        const createBtn = document.getElementById("createBtn");
-        const screenBtn = document.getElementById("screenBtn");
-        const endBtn = document.getElementById("endBtn");
-
-        const localVideoName = document.getElementById("localVideoName");
-        const displayId = document.getElementById("displayMyId");
-
-        displayId.innerText =
-            localStorage.getItem("vsdk_id") || "Pending";
-
-        // ---------------- SDK ----------------
-        const sdk = new VideoSDKCore(
-            "wss://rust-video-server.onrender.com/ws",
-            meetingState,
-            {
-                onUserJoined: (participant) => {
-                    alert(`${participant.name || "Participant"} joined`);
-
-                    createOrUpdateCard(
-                        participant.id,
-                        participant.name
-                    );
-                },
-
-                onTrack: (peerId, kind) => {
-                    const participant =
-                        meetingState.getParticipant(peerId);
-
-                    if (!participant) return;
-
-                    // CAMERA
-                    if (kind === "camera") {
-                        const card =
-                            createOrUpdateCard(
-                                participant.id,
-                                participant.name
-                            );
-
-                        const video =
-                            card.querySelector("video");
-
-                        video.srcObject =
-                            participant.media.cameraStream;
-
-                        return;
-                    }
-
-                    // SCREEN
-                    if (kind === "screen") {
-                        screenVideo.srcObject =
-                            participant.media.screenStream;
-
-                        screenLabel.innerText =
-                            `${participant.name || peerId} is sharing screen`;
-
-                        screenStage.classList.remove("hidden");
-                    }
-                },
-
-                onUserLeft: (participant) => {
-                    alert(`${participant.name || "Participant"} left`);
-
-                    document
-                        .getElementById(`card-${participant.id}`)
-                        ?.remove();
-                }
-            }
-        );
-
-        // ---------------- VIDEO CARD ----------------
-        function createOrUpdateCard(id, name) {
-            let card =
-                document.getElementById(`card-${id}`);
-
-            if (!card) {
-                card =
-                    document.createElement("div");
-
-                card.className = "video-card";
-                card.id = `card-${id}`;
-
-                const video =
-                    document.createElement("video");
-
-                video.autoplay = true;
-                video.playsInline = true;
-
-                const label =
-                    document.createElement("div");
-
-                label.className = "video-name";
-
-                card.appendChild(video);
-                card.appendChild(label);
-
-                videosContainer.appendChild(card);
-            }
-
-            card.querySelector(".video-name").textContent =
-                name || id;
-
-            return card;
-        }
-
-        // ---------------- CREATE ROOM ----------------
-        createBtn.onclick = async () => {
-            const res =
-                await fetch(
-                    "https://rust-video-server.onrender.com/rooms",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-                        body: JSON.stringify({
-                            title: "My Room",
-                            created_by:
-                                localStorage.getItem(
-                                    "vsdk_id"
-                                )
-                        })
-                    }
-                );
-
-            const data =
-                await res.json();
-
-            createdRoomInput.value =
-                data.id;
-
-            roomInput.value =
-                data.id;
-        };
-
-        // ---------------- JOIN ----------------
-        startBtn.onclick = async () => {
-            const roomId =
-                roomInput.value.trim();
-
-            const name =
-                userNameInput.value.trim() ||
-                `User-${displayId.textContent.slice(0, 5)}`;
-
-            if (!roomId) {
-                alert("Room ID required");
-                return;
-            }
-
-            localVideoName.innerText =
-                `${name} (You)`;
-
-            await sdk.initLocal(
-                localVideo,
-                name
-            );
-
-            await sdk.connect(
-                roomId,
-                name
-            );
-
-            startBtn.disabled = true;
-            startBtn.innerText = "Connected";
-
-            userNameInput.disabled = true;
-            roomInput.disabled = true;
-
-            screenBtn.disabled = false;
-            endBtn.disabled = false;
-        };
-
-        // ---------------- SCREEN SHARE ----------------
-        screenBtn.onclick = async () => {
-            try {
-                if (sdk.isScreenSharing) {
-                    await sdk.stopScreenShare();
-                    screenBtn.innerText = "Start Screen Share";
-                } else {
-                    await sdk.startScreenShare();
-                    screenBtn.innerText = "Stop Screen Share";
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Screen Share Failed");
-            }
-        };
-
-        // ---------------- END ----------------
-        endBtn.onclick = async () => {
-            try {
-                if (sdk.isScreenSharing) {
-                    await sdk.stopScreenShare();
-                }
-
-                if (typeof sdk.disconnect === "function") {
-                    await sdk.disconnect();
-                }
-
-                startBtn.disabled = false;
-                startBtn.innerText = "Join Call";
-
-                userNameInput.disabled = false;
-                roomInput.disabled = false;
-
-                screenBtn.disabled = true;
-                endBtn.disabled = true;
-
-                screenVideo.srcObject = null;
-
-                screenStage.classList.add("hidden");
-
-                videosContainer.innerHTML = `
-                    <div class="video-card">
-                        <video id="localVideo" autoplay playsinline muted></video>
-                        <div class="video-name" id="localVideoName">You</div>
-                    </div>
-                `;
-
-                alert("Meeting Ended");
-
-            } catch (err) {
-                console.error(err);
-
-                alert(
-                    "Failed To End Meeting"
-                );
-            }
-        };
-
-    </script>
+    <script type="module" src="./script/index.js"></script>
 
 </body>
 

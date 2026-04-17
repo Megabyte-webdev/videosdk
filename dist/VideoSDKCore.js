@@ -72,6 +72,7 @@ export class VideoSDKCore {
     // ---------------- SIGNAL HANDLER ----------------
     handle(msg) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             if (msg.sender === this.myId)
                 return;
             switch (msg.type) {
@@ -96,6 +97,19 @@ export class VideoSDKCore {
                 case "ICE":
                     yield this.handleIce(msg);
                     break;
+                case "CHAT_MESSAGE": {
+                    let newMsg = msg.data;
+                    this.state.addMessage({
+                        id: newMsg.id,
+                        sender: newMsg.sender_id,
+                        name: newMsg.sender_name,
+                        message: newMsg.message,
+                        timestamp: newMsg.timestamp,
+                        target: newMsg.target,
+                    });
+                    (_b = (_a = this.events).onMessage) === null || _b === void 0 ? void 0 : _b.call(_a, newMsg);
+                    break;
+                }
                 case "SCREEN_SHARE_START": {
                     const p = this.state.getParticipant(msg.sender);
                     if (p) {
@@ -126,13 +140,11 @@ export class VideoSDKCore {
         // ---------------- ON TRACK ----------------
         pc.ontrack = (event) => {
             var _a, _b, _c, _d;
+            console.log("Track", event);
             const stream = event.streams[0];
             const participant = this.state.getParticipant(id);
             if (!participant)
                 return;
-            // IMPORTANT:
-            // DO NOT infer screen from stream structure
-            // USE SIGNALING STATE
             if (participant.media.isScreenSharing) {
                 this.state.setScreenStream(id, stream);
                 (_b = (_a = this.events).onTrack) === null || _b === void 0 ? void 0 : _b.call(_a, id, "screen");
@@ -276,5 +288,50 @@ export class VideoSDKCore {
     send(msg) {
         var _a;
         (_a = this.ws) === null || _a === void 0 ? void 0 : _a.send(JSON.stringify(msg));
+    }
+    sendChat(payload) {
+        var _a, _b;
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.warn("WS not connected");
+            return;
+        }
+        if (!this.roomId) {
+            console.warn("No roomId set");
+            return;
+        }
+        const senderName = ((_a = this.state.localParticipant) === null || _a === void 0 ? void 0 : _a.name) || "Anonymous";
+        this.send({
+            type: "CHAT_MESSAGE",
+            message: payload.text.trim(),
+            user_id: this.myId,
+            sender_name: senderName,
+            room_id: this.roomId,
+            target: payload.isPrivate ? (_b = payload === null || payload === void 0 ? void 0 : payload.reply_to) === null || _b === void 0 ? void 0 : _b.id : null,
+            reply_to: (payload === null || payload === void 0 ? void 0 : payload.reply_to) || null,
+            client_ts: Date.now(),
+        });
+    }
+    cleanupLocal() {
+        var _a, _b;
+        Object.values(this.peers).forEach((pc) => pc.close());
+        this.peers = {};
+        (_a = this.localStream) === null || _a === void 0 ? void 0 : _a.getTracks().forEach((t) => t.stop());
+        (_b = this.screenStream) === null || _b === void 0 ? void 0 : _b.getTracks().forEach((t) => t.stop());
+        this.localStream = null;
+        this.screenStream = null;
+        this.state.reset();
+    }
+    disconnect() {
+        if (!this.ws)
+            return;
+        this.send({
+            type: "LEAVE",
+            sender: this.myId,
+            room_id: this.roomId,
+        });
+        // close socket AFTER notifying server
+        this.ws.close();
+        this.ws = null;
+        this.cleanupLocal();
     }
 }

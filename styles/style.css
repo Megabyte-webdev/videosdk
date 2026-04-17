@@ -204,3 +204,228 @@ button {
   font-size: 0.9rem;
   color: white;
 }
+
+.hidden {
+  display: none !important;
+}
+/* --- ENHANCED CHAT UI --- */
+.chat-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 350px;
+  height: 100%;
+  background: #1e293b; /* Matches your Slate-800 theme */
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  z-index: 999;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.3);
+}
+
+.chat-header {
+  padding: 16px;
+  background: #0f172a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Individual Message Bubble */
+.chat-message {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #334155;
+  color: #f8fafc;
+  position: relative;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  align-self: flex-start; /* Default: Received */
+}
+
+/* Local User's Message (Sent) */
+.chat-message.is-me {
+  align-self: flex-end;
+  background: var(--primary);
+  border-bottom-right-radius: 2px;
+}
+
+.chat-message .sender-name {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #94a3b8;
+}
+
+.chat-message.is-me .sender-name {
+  color: #bfdbfe;
+  text-align: right;
+}
+
+/* Reply Styling within a bubble */
+.replied-content {
+  background: rgba(0, 0, 0, 0.2);
+  border-left: 3px solid var(--primary);
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* Chat Footer & Input */
+.chat-footer {
+  background: #0f172a;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.chat-input-wrapper {
+  display: flex;
+  background: #1e293b;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.chat-input-wrapper input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 12px;
+  color: white;
+}
+
+.chat-input-wrapper button {
+  background: transparent;
+  color: var(--primary);
+  padding: 0 15px;
+}
+
+/* Reply Banner */
+.reply-banner {
+  background: #334155;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px 8px 0 0;
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  border-bottom: none;
+}
+
+#cancelReply {
+  background: transparent;
+  color: #ef4444;
+  font-size: 1rem;
+  padding: 0;
+}
+
+/* Private message specific styling */
+.chat-message.private-msg {
+  border-left: 4px solid #f59e0b !important; /* Gold highlight */
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.private-badge {
+  background: #f59e0b;
+  color: #000;
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+/* Professional Floating Button */
+.chat-toggle {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  padding: 12px 20px;
+  background-color: var(--primary); /* Using your blue theme */
+  color: white;
+  border: none;
+  border-radius: 50px; /* Capsule shape */
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 0.2s,
+    background-color 0.2s;
+  z-index: 998; /* Just below the chat panel (999) */
+}
+
+.chat-toggle:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-2px);
+}
+
+.chat-toggle:active {
+  transform: translateY(0);
+}
+
+.chat-icon {
+  font-size: 1.2rem;
+}
+
+/* Hide the button when the chat panel is actually open */
+body:has(.chat-panel:not(.hidden)) .chat-toggle {
+  display: none;
+}
+
+/* The Notification Dot */
+.chat-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  background-color: #ef4444; /* High-visibility red */
+  border: 2px solid var(--bg-color);
+  border-radius: 50%;
+  z-index: 1000;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.chat-badge.hidden {
+  display: none !important;
+}

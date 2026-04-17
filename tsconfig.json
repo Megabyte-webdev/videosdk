@@ -7,5 +7,5 @@
     "esModuleInterop": true,
     "lib": ["dom", "es2017"]
   },
-  "include": ["VideoSDKCore.ts", "MeetingState.ts"]
+  "include": ["./*.ts"]
 }

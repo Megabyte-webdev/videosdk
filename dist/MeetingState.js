@@ -3,6 +3,13 @@ export class MeetingState {
         this.localParticipant = null;
         this.participants = new Map();
         this.activeScreenPeerId = null;
+        this.messages = [];
+    }
+    addMessage(msg) {
+        this.messages.push(msg);
+    }
+    getMessages() {
+        return this.messages;
     }
     // ---------------- PARTICIPANTS ----------------
     addParticipant(p) {
@@ -47,5 +54,6 @@ export class MeetingState {
         this.participants.clear();
         this.activeScreenPeerId = null;
         this.localParticipant = null;
+        this.messages = [];
     }
 }
