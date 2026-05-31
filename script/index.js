@@ -255,7 +255,7 @@ function createOrUpdateCard(id, name) {
 
 // ---------------- CREATE ROOM ----------------
 createBtn.onclick = async () => {
-  const res = await fetch("https://rust-video-server.onrender.com/rooms", {
+  const res = await fetch("https://rust-video-server-sfyf.onrender.com/rooms", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
