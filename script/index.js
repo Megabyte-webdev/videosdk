@@ -149,7 +149,7 @@ displayId.innerText = localStorage.getItem("vsdk_id") || "Pending";
 
 // ---------------- SDK ----------------
 const sdk = new VideoSDKCore(
-  "wss://rust-video-server.onrender.com/ws",
+  "wss://rust-video-server-sfyf.onrender.com/ws",
   meetingState,
   {
     onUserJoined: (participant) => {
