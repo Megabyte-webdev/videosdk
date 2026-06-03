@@ -159,10 +159,22 @@ export class VideoSDKCore {
         // ---------------- ON TRACK ----------------
         pc.ontrack = (event) => {
             var _a, _b, _c, _d;
-            console.log("Track", event);
             const stream = event.streams[0];
             const participant = this.state.getParticipant(id);
             if (!participant)
+                return;
+            // 🔊 ALWAYS attach audio
+            let audio = document.querySelector(`#audio-${id}`);
+            if (!audio) {
+                audio = document.createElement("audio");
+                audio.id = `audio-${id}`;
+                audio.autoplay = true;
+                document.body.appendChild(audio);
+            }
+            audio.srcObject = stream;
+            // 🎥 video routing
+            const videoTrack = stream.getVideoTracks()[0];
+            if (!videoTrack)
                 return;
             if (participant.media.isScreenSharing) {
                 this.state.setScreenStream(id, stream);
@@ -340,6 +352,42 @@ export class VideoSDKCore {
         this.localStream = null;
         this.screenStream = null;
         this.state.reset();
+    }
+    toggleMic() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.localStream)
+                return false;
+            const audioTrack = this.localStream.getAudioTracks()[0];
+            if (!audioTrack)
+                return false;
+            audioTrack.enabled = !audioTrack.enabled;
+            if (this.state.localParticipant) {
+                this.state.localParticipant.media.micEnabled = audioTrack.enabled;
+            }
+            return audioTrack.enabled;
+        });
+    }
+    toggleCamera() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.localStream)
+                return false;
+            const videoTrack = this.localStream.getVideoTracks()[0];
+            if (!videoTrack)
+                return false;
+            videoTrack.enabled = !videoTrack.enabled;
+            if (this.state.localParticipant) {
+                this.state.localParticipant.media.camEnabled = videoTrack.enabled;
+            }
+            return videoTrack.enabled;
+        });
+    }
+    isMicEnabled() {
+        var _a, _b, _c;
+        return (_c = (_b = (_a = this.localStream) === null || _a === void 0 ? void 0 : _a.getAudioTracks()[0]) === null || _b === void 0 ? void 0 : _b.enabled) !== null && _c !== void 0 ? _c : false;
+    }
+    isCameraEnabled() {
+        var _a, _b, _c;
+        return (_c = (_b = (_a = this.localStream) === null || _a === void 0 ? void 0 : _a.getVideoTracks()[0]) === null || _b === void 0 ? void 0 : _b.enabled) !== null && _c !== void 0 ? _c : false;
     }
     disconnect() {
         if (!this.ws)

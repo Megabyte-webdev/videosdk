@@ -184,24 +184,35 @@ export class VideoSDKCore {
 
     // ---------------- ON TRACK ----------------
     pc.ontrack = (event) => {
-      console.log("Track", event);
-
       const stream = event.streams[0];
-
       const participant = this.state.getParticipant(id);
 
       if (!participant) return;
 
+      // 🔊 ALWAYS attach audio
+      let audio = document.querySelector<HTMLAudioElement>(`#audio-${id}`);
+
+      if (!audio) {
+        audio = document.createElement("audio");
+        audio.id = `audio-${id}`;
+        audio.autoplay = true;
+        document.body.appendChild(audio);
+      }
+
+      audio.srcObject = stream;
+
+      // 🎥 video routing
+      const videoTrack = stream.getVideoTracks()[0];
+
+      if (!videoTrack) return;
+
       if (participant.media.isScreenSharing) {
         this.state.setScreenStream(id, stream);
-
         this.events.onTrack?.(id, "screen");
-
         return;
       }
 
       this.state.setCameraStream(id, stream);
-
       this.events.onTrack?.(id, "camera");
     };
 
