@@ -146,6 +146,14 @@ function renderMessage(msg, isMe = false) {
 }
 
 displayId.innerText = localStorage.getItem("vsdk_id") || "Pending";
+const waitForId = setInterval(() => {
+  const id = localStorage.getItem("vsdk_id");
+
+  if (id) {
+    displayId.innerText = id;
+    clearInterval(waitForId);
+  }
+}, 100);
 
 // ---------------- SDK ----------------
 const sdk = new VideoSDKCore(

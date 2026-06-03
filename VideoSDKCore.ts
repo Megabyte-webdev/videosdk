@@ -411,6 +411,46 @@ export class VideoSDKCore {
     this.state.reset();
   }
 
+  async toggleMic() {
+    if (!this.localStream) return false;
+
+    const audioTrack = this.localStream.getAudioTracks()[0];
+
+    if (!audioTrack) return false;
+
+    audioTrack.enabled = !audioTrack.enabled;
+
+    if (this.state.localParticipant) {
+      this.state.localParticipant.media.micEnabled = audioTrack.enabled;
+    }
+
+    return audioTrack.enabled;
+  }
+
+  async toggleCamera() {
+    if (!this.localStream) return false;
+
+    const videoTrack = this.localStream.getVideoTracks()[0];
+
+    if (!videoTrack) return false;
+
+    videoTrack.enabled = !videoTrack.enabled;
+
+    if (this.state.localParticipant) {
+      this.state.localParticipant.media.camEnabled = videoTrack.enabled;
+    }
+
+    return videoTrack.enabled;
+  }
+
+  isMicEnabled() {
+    return this.localStream?.getAudioTracks()[0]?.enabled ?? false;
+  }
+
+  isCameraEnabled() {
+    return this.localStream?.getVideoTracks()[0]?.enabled ?? false;
+  }
+
   disconnect() {
     if (!this.ws) return;
 
