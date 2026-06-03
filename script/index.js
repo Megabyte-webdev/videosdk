@@ -293,20 +293,32 @@ startBtn.onclick = async () => {
     return;
   }
 
-  localVideoName.innerText = `${name} (You)`;
+  try {
+    // Show loading state immediately
+    startBtn.disabled = true;
+    startBtn.innerText = "Joining...";
 
-  await sdk.initLocal(localVideo, name);
+    localVideoName.innerText = `${name} (You)`;
 
-  await sdk.connect(roomId, name);
+    await sdk.initLocal(localVideo, name);
 
-  startBtn.disabled = true;
-  startBtn.innerText = "Connected";
+    await sdk.connect(roomId, name);
 
-  userNameInput.disabled = true;
-  roomInput.disabled = true;
+    startBtn.innerText = "Connected";
 
-  screenBtn.disabled = false;
-  endBtn.disabled = false;
+    userNameInput.disabled = true;
+    roomInput.disabled = true;
+
+    screenBtn.disabled = false;
+    endBtn.disabled = false;
+  } catch (err) {
+    console.error(err);
+
+    startBtn.disabled = false;
+    startBtn.innerText = "Join Call";
+
+    alert("Failed to join meeting");
+  }
 };
 
 // ---------------- SCREEN SHARE ----------------
